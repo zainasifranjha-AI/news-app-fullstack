@@ -10,7 +10,7 @@ class AddCategoryScreen extends StatelessWidget {
   Future<void> addCategory(BuildContext context) async {
     try {
       final response = await http.post(
-        Uri.parse("http://127.0.0.1:8000/api/categories"),
+        Uri.parse("https://online-news-app.up.railway.app/api/categories"),
         headers: {
           "Authorization": "Bearer $token",
           "Accept": "application/json"

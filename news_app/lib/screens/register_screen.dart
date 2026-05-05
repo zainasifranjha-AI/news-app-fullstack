@@ -10,7 +10,7 @@ class RegisterScreen extends StatelessWidget {
 
   Future<void> register(BuildContext context) async {
     final response = await http.post(
-      Uri.parse("http://127.0.0.1:8000/api/register"),
+      Uri.parse("https://online-news-app.up.railway.app/api/register"),
       headers: {"Accept": "application/json"},
       body: {
         "name": name.text,

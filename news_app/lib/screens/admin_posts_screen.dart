@@ -23,7 +23,7 @@ class _AdminPostsScreenState extends State<AdminPostsScreen> {
 
   Future<void> fetchPosts() async {
     final response = await http.get(
-      Uri.parse("http://127.0.0.1:8000/api/posts"),
+      Uri.parse("https://online-news-app.up.railway.app/api/posts"),
       headers: {"Accept": "application/json"},
     );
 
@@ -35,7 +35,7 @@ class _AdminPostsScreenState extends State<AdminPostsScreen> {
 
   Future<void> deletePost(int id) async {
     await http.delete(
-      Uri.parse("http://127.0.0.1:8000/api/posts/$id"),
+      Uri.parse("https://online-news-app.up.railway.app/api/posts/$id"),
       headers: {
         "Authorization": "Bearer ${widget.token}"
       },

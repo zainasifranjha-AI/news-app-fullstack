@@ -28,7 +28,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // 🔥 FETCH CATEGORIES
   Future<void> fetchCategories() async {
     final response = await http.get(
-      Uri.parse("http://127.0.0.1:8000/api/categories"),
+      Uri.parse("https://online-news-app.up.railway.app/api/categories"),
       headers: {"Accept": "application/json"},
     );
 

@@ -22,7 +22,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       print("🔵 LOGIN START");
 
       final response = await http.post(
-        Uri.parse("http://127.0.0.1:8000/api/login"),
+        Uri.parse("https://online-news-app.up.railway.app/api/login"),
         headers: {"Accept": "application/json"},
         body: {
           "email": email.text,

@@ -60,7 +60,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
   Future<void> addPost() async {
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse("http://127.0.0.1:8000/api/posts"),
+      Uri.parse("https://online-news-app.up.railway.app/api/posts"),
     );
 
     request.headers['Authorization'] = "Bearer ${widget.token}";
