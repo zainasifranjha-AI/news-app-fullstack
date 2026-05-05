@@ -2,18 +2,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // 🔥 DYNAMIC BASE URL (future safe)
   static const String baseUrl = String.fromEnvironment(
     'BASE_URL',
-    defaultValue: 'http://localhost:8000/api',
+    defaultValue: 'https://online-news-app.up.railway.app/api',
   );
 
-  // 🔥 BASE URL WITHOUT /api (for images)
   static String get base {
     return baseUrl.replaceAll('/api', '');
   }
 
-  // 🔥 GET CATEGORIES
   static Future<List<dynamic>> getCategories() async {
     try {
       print("CALLING CATEGORIES API...");
@@ -40,7 +37,6 @@ class ApiService {
     }
   }
 
-  // 🔥 GET POSTS BY CATEGORY
   static Future<List<dynamic>> getPostsByCategory(int categoryId) async {
     try {
       print("CALLING POSTS API...");
@@ -66,7 +62,6 @@ class ApiService {
     }
   }
 
-  // 🔥 IMAGE URL HELPER (VERY IMPORTANT)
   static String getImageUrl(String path) {
     return "$base/storage/$path";
   }
