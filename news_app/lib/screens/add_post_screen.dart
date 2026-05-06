@@ -9,7 +9,8 @@ class AddPostScreen extends StatefulWidget {
   final String token;
   final int categoryId;
 
-  const AddPostScreen({super.key, 
+  const AddPostScreen({
+    super.key,
     required this.token,
     required this.categoryId,
   });
@@ -25,9 +26,12 @@ class _AddPostScreenState extends State<AddPostScreen> {
   Uint8List? webImage;
   final picker = ImagePicker();
 
-  // 🔥 PICK IMAGE
+  // 🔥 UPDATED PICK IMAGE (COMPRESSED)
   Future<void> pickImage() async {
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80, // ✅ compress image
+    );
 
     if (picked != null) {
       if (kIsWeb) {
@@ -39,7 +43,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
     }
   }
 
-  // 🔥 IMAGE PREVIEW FUNCTION (OUTSIDE UI)
+  // 🔥 IMAGE PREVIEW
   Widget imagePreview() {
     if (kIsWeb) {
       if (webImage != null) {
@@ -113,7 +117,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
         padding: EdgeInsets.all(15),
         child: Column(
           children: [
-            // 🔥 IMAGE PREVIEW (CALL FUNCTION)
+            // 🔥 IMAGE PREVIEW
             imagePreview(),
 
             SizedBox(height: 10),
