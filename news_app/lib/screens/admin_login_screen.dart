@@ -33,17 +33,22 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       print("🟢 STATUS: ${response.statusCode}");
       print("🟡 BODY: ${response.body}");
 
-      // 🔥 Safe decode
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         String token = data['token'];
 
+        // ✅ SAFE ROLE FETCH
+        String role = "user";
+        if (data.containsKey('user') && data['user'] != null) {
+          role = data['user']['role'] ?? 'user';
+        }
+
         print("✅ LOGIN SUCCESS");
         print("🔑 TOKEN: $token");
+        print("👤 ROLE: $role");
 
-        // 🔥 ROLE CHECK (temporary)
-        if (email.text == "admin@gmail.com") {
+        if (role == "admin") {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
