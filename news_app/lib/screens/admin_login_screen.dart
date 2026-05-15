@@ -1,136 +1,180 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
+import '../core/theme_mode_holder.dart';
+import '../services/api_service.dart';
+import '../services/auth_store.dart';
 import 'admin_dashboard.dart';
 import 'categories_screen.dart';
-import 'package:news_app/screens/register_screen.dart';
+import 'register_screen.dart';
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
 
   @override
-  _AdminLoginScreenState createState() => _AdminLoginScreenState();
+  State<AdminLoginScreen> createState() => _AdminLoginScreenState();
 }
 
 class _AdminLoginScreenState extends State<AdminLoginScreen> {
-  TextEditingController email = TextEditingController();
-  TextEditingController password = TextEditingController();
+  final TextEditingController email = TextEditingController();
+  final TextEditingController password = TextEditingController();
+  bool busy = false;
 
   Future<void> login() async {
+    setState(() => busy = true);
     try {
-      print("🔵 LOGIN START");
-
       final response = await http.post(
-        Uri.parse("https://online-news-app.up.railway.app/api/login"),
-        headers: {"Accept": "application/json"},
-        body: {
-          "email": email.text,
-          "password": password.text,
-        },
+        Uri.parse('${ApiService.baseUrl}/login'),
+        headers: ApiService.jsonHeaders(),
+        body: {'email': email.text, 'password': password.text},
       );
 
-      print("🟢 STATUS: ${response.statusCode}");
-      print("🟡 BODY: ${response.body}");
-
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200) {
-        String token = data['token'];
-
-        // ✅ SAFE ROLE FETCH
-        String role = "user";
-        if (data.containsKey('user') && data['user'] != null) {
-          role = data['user']['role'] ?? 'user';
+        final token = data['token'] as String;
+        var role = 'user';
+        int? userId;
+        if (data['user'] != null) {
+          final u = Map<String, dynamic>.from(data['user'] as Map);
+          role = u['role'] as String? ?? 'user';
+          userId = (u['id'] as num?)?.toInt();
         }
+        await AuthStore.saveToken(token);
+        await AuthStore.saveProfile(userId: userId, role: role);
 
-        print("✅ LOGIN SUCCESS");
-        print("🔑 TOKEN: $token");
-        print("👤 ROLE: $role");
-
-        if (role == "admin") {
+        if (!mounted) return;
+        if (role == 'admin') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (_) => AdminDashboard(token: token),
-            ),
+            MaterialPageRoute(builder: (_) => AdminDashboard(token: token)),
           );
         } else {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (_) => CategoriesScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const CategoriesScreen()),
           );
         }
       } else {
-        print("❌ LOGIN FAILED");
-
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Login Failed: ${data.toString()}"),
-          ),
+          SnackBar(content: Text('Login failed: ${data['message'] ?? response.body}')),
         );
       }
     } catch (e) {
-      print("🔥 ERROR: $e");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.deepPurple,
-      body: Center(
-        child: Container(
-          width: 300,
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [scheme.primaryContainer, scheme.surface],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text("Login", style: TextStyle(fontSize: 22)),
-              SizedBox(height: 20),
-
-              TextField(
-                controller: email,
-                decoration: InputDecoration(labelText: "Email"),
-              ),
-
-              TextField(
-                controller: password,
-                obscureText: true,
-                decoration: InputDecoration(labelText: "Password"),
-              ),
-
-              SizedBox(height: 20),
-
-              ElevatedButton(
-                onPressed: login,
-                child: Text("Login"),
-              ),
-
-              SizedBox(height: 10),
-
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RegisterScreen(),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'News Desk',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Sign in to continue',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                        ),
+                        const SizedBox(height: 24),
+                        TextField(
+                          controller: email,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(labelText: 'Email'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: password,
+                          obscureText: true,
+                          decoration: const InputDecoration(labelText: 'Password'),
+                        ),
+                        const SizedBox(height: 20),
+                        FilledButton(
+                          onPressed: busy ? null : login,
+                          child: busy
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('Login'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                            );
+                          },
+                          child: const Text('Create account'),
+                        ),
+                        const Divider(height: 32),
+                        ValueListenableBuilder<ThemeMode>(
+                          valueListenable: globalThemeMode,
+                          builder: (context, mode, _) {
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  mode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
+                                  size: 18,
+                                  color: scheme.outline,
+                                ),
+                                const SizedBox(width: 8),
+                                Text('Appearance', style: TextStyle(color: scheme.outline)),
+                                const SizedBox(width: 8),
+                                Switch(
+                                  value: mode == ThemeMode.dark,
+                                  onChanged: (v) {
+                                    globalThemeMode.value = v ? ThemeMode.dark : ThemeMode.light;
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  );
-                },
-                child: Text("Create New Account"),
-              )
-            ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

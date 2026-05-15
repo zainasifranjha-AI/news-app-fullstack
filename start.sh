@@ -1,4 +1,7 @@
 #!/bin/bash
+set -e
+echo "Linking public storage..."
+php artisan storage:link --force || true
 echo "Running migrations..."
 php artisan migrate --force
 echo "Starting server..."

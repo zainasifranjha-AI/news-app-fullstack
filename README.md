@@ -1,5 +1,52 @@
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
+## News App (Laravel API + Flutter)
+
+This repository contains the **Laravel 12 JSON API** (categories, posts, image uploads to `storage/app/public`) and the **Flutter** admin/user client in `news_app/`.
+
+### Why images broke (and what fixes it)
+
+- Post rows store a relative path such as `posts/abc.jpg`.
+- Laravel serves files from **`public/storage`** → symlink to **`storage/app/public`**. Without the link, `/storage/posts/...` returns 404.
+- The API now also returns **`image_url`** (full URL built from `APP_URL`) so clients can load images reliably.
+- The Flutter app **must use the same API host** for JSON and for `image_url` (no more hard-coded Railway URLs in screens).
+
+### Localhost — backend
+
+1. Copy `.env.example` to `.env` and run `php artisan key:generate`.
+2. Set **`APP_URL=http://127.0.0.1:8000`** (include the port you use with `php artisan serve`).
+3. Run migrations: `php artisan migrate`.
+4. **Create the storage symlink:** `php artisan storage:link` (also runs from `composer run-script setup` and `start.sh` on Railway).
+5. Seed admin (if you use the included seeder): `php artisan db:seed`.
+6. Start API: `php artisan serve` → API base `http://127.0.0.1:8000/api`.
+
+### Localhost — Flutter (`news_app`)
+
+Default API base is **`http://127.0.0.1:8000/api`** (see `lib/services/api_service.dart`).
+
+- **Chrome / desktop:**  
+  `flutter run --dart-define=BASE_URL=http://127.0.0.1:8000/api`
+- **Android emulator** (host machine loopback):  
+  `flutter run --dart-define=BASE_URL=http://10.0.2.2:8000/api`  
+  and set **`.env` `APP_URL=http://10.0.2.2:8000`** so `image_url` matches what the emulator can reach.  
+  *Alternative:* keep `APP_URL` as `127.0.0.1` and run `adb reverse tcp:8000 tcp:8000`, then use `http://127.0.0.1:8000/api` in Flutter.
+- **Physical device on same Wi‑Fi:** use your PC’s LAN IP, e.g.  
+  `flutter run --dart-define=BASE_URL=http://192.168.1.50:8000/api`  
+  and **`APP_URL=http://192.168.1.50:8000`**.
+
+Cleartext HTTP for dev is allowed via `android/app/src/main/res/xml/network_security_config.xml` and iOS `NSAllowsLocalNetworking` in `ios/Runner/Info.plist`.
+
+### Production (Railway)
+
+1. Set **`APP_URL`** to your public HTTPS origin (no trailing slash), e.g. `https://your-service.up.railway.app`.
+2. Ensure **`php artisan storage:link`** runs on deploy (`Procfile` / `start.sh` already include it).
+3. Build Flutter with:  
+   `flutter build apk --release --dart-define=BASE_URL=https://your-service.up.railway.app/api`
+
+Protected routes: **`POST /api/categories`**, **`POST /api/posts`**, **`DELETE /api/posts/{id}`** require a Sanctum **Bearer** token for an **admin** user.
+
+---
+
 <p align="center">
 <a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>

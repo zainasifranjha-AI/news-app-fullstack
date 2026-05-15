@@ -1,109 +1,111 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart'; // 🔥 for kIsWeb
-import 'dart:io';
-import 'dart:typed_data';
+
+import '../services/api_service.dart';
 
 class AddPostScreen extends StatefulWidget {
-  final String token;
-  final int categoryId;
-
   const AddPostScreen({
     super.key,
     required this.token,
     required this.categoryId,
+    this.categoryName,
   });
 
+  final String token;
+  final int categoryId;
+  final String? categoryName;
+
   @override
-  _AddPostScreenState createState() => _AddPostScreenState();
+  State<AddPostScreen> createState() => _AddPostScreenState();
 }
 
 class _AddPostScreenState extends State<AddPostScreen> {
-  final TextEditingController caption = TextEditingController();
-
+  final title = TextEditingController();
+  final description = TextEditingController();
   File? imageFile;
   Uint8List? webImage;
   final picker = ImagePicker();
+  bool busy = false;
 
-  // 🔥 UPDATED PICK IMAGE (COMPRESSED)
   Future<void> pickImage() async {
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80, // ✅ compress image
-    );
-
-    if (picked != null) {
+    try {
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked == null) return;
       if (kIsWeb) {
         webImage = await picked.readAsBytes();
       } else {
         imageFile = File(picked.path);
       }
       setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Picker error: $e')));
     }
   }
 
-  // 🔥 IMAGE PREVIEW
   Widget imagePreview() {
     if (kIsWeb) {
-      if (webImage != null) {
-        return Image.memory(webImage!, height: 200);
-      } else {
-        return SizedBox();
-      }
-    } else {
-      if (imageFile != null) {
-        return Image.file(imageFile!, height: 200);
-      } else {
-        return SizedBox();
-      }
+      if (webImage == null) return const SizedBox.shrink();
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.memory(webImage!, height: 200, width: double.infinity, fit: BoxFit.cover),
+      );
     }
+    if (imageFile == null) return const SizedBox.shrink();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.file(imageFile!, height: 200, width: double.infinity, fit: BoxFit.cover),
+    );
   }
 
-  // 🔥 POST DATA
   Future<void> addPost() async {
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse("https://online-news-app.up.railway.app/api/posts"),
-    );
-
-    request.headers['Authorization'] = "Bearer ${widget.token}";
-
-    request.fields['title'] = caption.text;
-    request.fields['description'] = caption.text;
-    request.fields['category_id'] = widget.categoryId.toString();
-
-    // 🔥 IMAGE HANDLE
-    if (kIsWeb && webImage != null) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'image',
-          webImage!,
-          filename: "upload.jpg",
-        ),
+    setState(() => busy = true);
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiService.baseUrl}/posts'),
       );
-    } else if (imageFile != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath('image', imageFile!.path),
-      );
-    }
+      request.headers.addAll(ApiService.jsonHeaders(token: widget.token));
+      request.fields['title'] = title.text.trim();
+      request.fields['description'] = description.text.trim();
+      request.fields['category_id'] = widget.categoryId.toString();
 
-    var response = await request.send();
+      if (kIsWeb && webImage != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes('image', webImage!, filename: 'upload.jpg'),
+        );
+      } else if (imageFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('image', imageFile!.path),
+        );
+      }
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ Post Added")),
-      );
+      final streamed = await request.send();
+      final body = await streamed.stream.bytesToString();
 
-      caption.clear();
-      setState(() {
-        imageFile = null;
-        webImage = null;
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Failed")),
-      );
+      if (!mounted) return;
+      if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post published')));
+        title.clear();
+        description.clear();
+        setState(() {
+          imageFile = null;
+          webImage = null;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed (${streamed.statusCode}): $body')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => busy = false);
     }
   }
 
@@ -111,47 +113,44 @@ class _AddPostScreenState extends State<AddPostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Create Post"),
+        title: Text(widget.categoryName == null ? 'New post' : 'Post · ${widget.categoryName}'),
       ),
-      body: Padding(
-        padding: EdgeInsets.all(15),
-        child: Column(
-          children: [
-            // 🔥 IMAGE PREVIEW
-            imagePreview(),
-
-            SizedBox(height: 10),
-
-            // 🔥 PICK IMAGE BUTTON
-            ElevatedButton(
-              onPressed: pickImage,
-              child: Text("Select Image"),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          imagePreview(),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: pickImage,
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+            label: const Text('Cover image'),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: title,
+            decoration: const InputDecoration(labelText: 'Headline'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: description,
+            maxLines: 6,
+            decoration: const InputDecoration(
+              labelText: 'Body',
+              alignLabelWithHint: true,
             ),
-
-            SizedBox(height: 15),
-
-            // 🔥 CAPTION FIELD
-            TextField(
-              controller: caption,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: "Write a caption...",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            SizedBox(height: 20),
-
-            // 🔥 POST BUTTON
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: addPost,
-                child: Text("Post"),
-              ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: busy ? null : addPost,
+            child: busy
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Publish'),
+          ),
+        ],
       ),
     );
   }
